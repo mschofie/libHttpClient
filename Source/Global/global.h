@@ -3,6 +3,9 @@
 #pragma once
 #include <httpClient/httpProvider.h>
 #include "../HTTP/httpcall.h"
+#if !HC_NOWEBSOCKETS
+#include "../WebSocket/hcwebsocket.h"
+#endif
 
 NAMESPACE_XBOX_HTTP_CLIENT_BEGIN
 
@@ -30,49 +33,54 @@ typedef struct http_retry_after_api_state
     uint32_t statusCode;
 } http_retry_after_api_state;
 
+static const uint32_t DEFAULT_TIMEOUT_WINDOW_IN_SECONDS = 20;
+static const uint32_t DEFAULT_HTTP_TIMEOUT_IN_SECONDS = 30;
+static const uint32_t DEFAULT_RETRY_DELAY_IN_SECONDS = 2;
+
 typedef struct http_singleton
 {
-    http_singleton(IHCPlatformContext* context);
+    http_singleton(
+        HttpPerformInfo const& httpPerformInfo,
+#if !HC_NOWEBSOCKETS
+        WebSocketPerformInfo const& websocketPerformInfo,
+#endif
+        PerformEnv&& performEnv
+    );
     ~http_singleton();
 
-    std::mutex m_singletonLock;
+    std::recursive_mutex m_singletonLock;
 
-    std::mutex m_retryAfterCacheLock;
+    std::recursive_mutex m_retryAfterCacheLock;
     std::unordered_map<uint32_t, http_retry_after_api_state> m_retryAfterCache;
     void set_retry_state(_In_ uint32_t retryAfterCacheId, _In_ const http_retry_after_api_state& state);
     http_retry_after_api_state get_retry_state(_In_ uint32_t retryAfterCacheId);
     void clear_retry_state(_In_ uint32_t retryAfterCacheId);
 
-    std::mutex m_callRoutedHandlersLock;
-    std::atomic<int32_t> m_callRoutedHandlersContext;
+    std::recursive_mutex m_callRoutedHandlersLock;
+    std::atomic<int32_t> m_callRoutedHandlersContext{ 0 };
     http_internal_unordered_map<int32_t, std::pair<HCCallRoutedHandler, void*>> m_callRoutedHandlers;
 
     // HTTP state
-    std::atomic<std::uint64_t> m_lastId;
-    HCCallPerformFunction m_performFunc;
-    bool m_retryAllowed;
-    uint32_t m_timeoutInSeconds;
-    uint32_t m_timeoutWindowInSeconds;
-    uint32_t m_retryDelayInSeconds;
+    HttpPerformInfo const m_httpPerform;
+    PerformEnv const m_performEnv;
 
-    // Platform-specific context for calls
-    std::unique_ptr<IHCPlatformContext> m_platformContext;
+    std::atomic<std::uint64_t> m_lastId{ 0 };
+    bool m_retryAllowed = true;
+    uint32_t m_timeoutInSeconds = DEFAULT_HTTP_TIMEOUT_IN_SECONDS;
+    uint32_t m_timeoutWindowInSeconds = DEFAULT_TIMEOUT_WINDOW_IN_SECONDS;
+    uint32_t m_retryDelayInSeconds = DEFAULT_RETRY_DELAY_IN_SECONDS;
 
-    // WebSocket state
-    HCWebSocketMessageFunction m_websocketMessageFunc;
-    HCWebSocketCloseEventFunction m_websocketCloseEventFunc;
-
-    HCWebSocketConnectFunction m_websocketConnectFunc;
-    HCWebSocketSendMessageFunction m_websocketSendMessageFunc;
-    HCWebSocketDisconnectFunction m_websocketDisconnectFunc;
+#if !HC_NOWEBSOCKETS
+    WebSocketPerformInfo const m_websocketPerform;
+#endif
 
     // Mock state
-    std::mutex m_mocksLock;
+    std::recursive_mutex m_mocksLock;
     http_internal_vector<HC_CALL*> m_mocks;
-    HC_CALL* m_lastMatchingMock;
-    bool m_mocksEnabled;
+    HC_CALL* m_lastMatchingMock = nullptr;
+    bool m_mocksEnabled = false;
 
-    std::mutex m_sharedPtrsLock;
+    std::recursive_mutex m_sharedPtrsLock;
     http_internal_unordered_map<void*, std::shared_ptr<void>> m_sharedPtrs;
 } http_singleton;
 
@@ -91,7 +99,7 @@ public:
         auto httpSingleton = get_http_singleton(false);
         if (nullptr == httpSingleton)
             return nullptr;
-        std::lock_guard<std::mutex> lock(httpSingleton->m_sharedPtrsLock);
+        std::lock_guard<std::recursive_mutex> lock(httpSingleton->m_sharedPtrsLock);
 
         void *rawVoidPtr = contextSharedPtr.get();
         std::shared_ptr<void> voidSharedPtr(contextSharedPtr, rawVoidPtr);
@@ -100,35 +108,42 @@ public:
     }
 
     template<typename T>
-    static std::shared_ptr<T> fetch(void *rawContextPtr, bool deleteShared = true)
+    static std::shared_ptr<T> fetch(void *rawContextPtr)
     {
         auto httpSingleton = get_http_singleton(false);
         if (nullptr == httpSingleton)
             return nullptr;
 
-        std::lock_guard<std::mutex> lock(httpSingleton->m_sharedPtrsLock);
+        std::lock_guard<std::recursive_mutex> lock(httpSingleton->m_sharedPtrsLock);
 
         auto iter = httpSingleton->m_sharedPtrs.find(rawContextPtr);
         if (iter != httpSingleton->m_sharedPtrs.end())
         {
             auto returnPtr = std::shared_ptr<T>(iter->second, reinterpret_cast<T*>(iter->second.get()));
-            if (deleteShared)
-            {
-                httpSingleton->m_sharedPtrs.erase(iter);
-            }
             return returnPtr;
         }
-        else
+
+        return nullptr;
+    }
+
+    static void remove(void *rawContextPtr)
+    {
+        auto httpSingleton = get_http_singleton(false);
+        if (nullptr == httpSingleton)
+            return;
+
+        std::lock_guard<std::recursive_mutex> lock(httpSingleton->m_sharedPtrsLock);
+
+        auto iter = httpSingleton->m_sharedPtrs.find(rawContextPtr);
+        if (iter != httpSingleton->m_sharedPtrs.end())
         {
-            ASSERT(false && "Context not found!");
-            return std::shared_ptr<T>();
+            httpSingleton->m_sharedPtrs.erase(iter);
         }
     }
 
     static void cleanup(_In_ std::shared_ptr<http_singleton> httpSingleton)
     {
-        std::lock_guard<std::mutex> lock(httpSingleton->m_sharedPtrsLock);
-        ASSERT(httpSingleton->m_sharedPtrs.size() == 0);
+        std::lock_guard<std::recursive_mutex> lock(httpSingleton->m_sharedPtrsLock);
         httpSingleton->m_sharedPtrs.clear();
     }
 
@@ -137,5 +152,10 @@ private:
     shared_ptr_cache(const shared_ptr_cache&);
     shared_ptr_cache& operator=(const shared_ptr_cache&);
 };
+
+HttpPerformInfo& GetUserHttpPerformHandler() noexcept;
+#if !HC_NOWEBSOCKETS
+WebSocketPerformInfo& GetUserWebSocketPerformHandlers() noexcept;
+#endif
 
 NAMESPACE_XBOX_HTTP_CLIENT_END

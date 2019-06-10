@@ -2,6 +2,7 @@
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
 #include "pch.h"
 #include <httpClient/httpClient.h>
+#include <httpClient/httpProvider.h>
 #include "android_http_request.h"
 #include "android_platform_context.h"
 
@@ -10,38 +11,56 @@ extern "C"
 
 JNIEXPORT void JNICALL Java_com_xbox_httpclient_HttpClientRequest_OnRequestCompleted(JNIEnv* env, jobject instance, jlong call, jobject response)
 {
-    hc_call_handle_t sourceCall = reinterpret_cast<hc_call_handle_t>(call);
+    HCCallHandle sourceCall = reinterpret_cast<HCCallHandle>(call);
     HttpRequest* request = nullptr;
     HCHttpCallGetContext(sourceCall, reinterpret_cast<void**>(&request));
     std::unique_ptr<HttpRequest> sourceRequest{ request };
 
     if (response == nullptr) 
     {
-        CompleteAsync(sourceRequest->GetAsyncBlock(), E_FAIL, 0);
+        HCHttpCallResponseSetNetworkErrorCode(sourceCall, E_FAIL, 0);
+        XAsyncComplete(sourceRequest->GetAsyncBlock(), E_FAIL, 0);
     }
     else 
     {
         HRESULT result = sourceRequest->ProcessResponse(sourceCall, response);
-        CompleteAsync(sourceRequest->GetAsyncBlock(), result, 0);
+        XAsyncComplete(sourceRequest->GetAsyncBlock(), result, 0);
     }
+}
+
+JNIEXPORT void JNICALL Java_com_xbox_httpclient_HttpClientRequest_OnRequestFailed(JNIEnv* env, jobject instance, jlong call, jstring errorMessage)
+{
+    HCCallHandle sourceCall = reinterpret_cast<HCCallHandle>(call);
+    HttpRequest* request = nullptr;
+    HCHttpCallGetContext(sourceCall, reinterpret_cast<void**>(&request));
+    std::unique_ptr<HttpRequest> sourceRequest{ request };
+
+    HCHttpCallResponseSetNetworkErrorCode(sourceCall, E_FAIL, 0);
+
+    const char* nativeErrorString = env->GetStringUTFChars(errorMessage, nullptr);
+    HCHttpCallResponseSetPlatformNetworkErrorMessage(sourceCall, nativeErrorString);
+    env->ReleaseStringUTFChars(errorMessage, nativeErrorString);
+
+    XAsyncComplete(sourceRequest->GetAsyncBlock(), E_FAIL, 0);
 }
 
 }
 
 void Internal_HCHttpCallPerformAsync(
-    _In_ hc_call_handle_t call,
-    _Inout_ AsyncBlock* asyncBlock
-    )
+    _In_ HCCallHandle call,
+    _Inout_ XAsyncBlock* asyncBlock,
+    _In_opt_ void* context,
+    _In_ HCPerformEnv env
+) noexcept
 {
     auto httpSingleton = xbox::httpclient::get_http_singleton(true);
-    AndroidPlatformContext* platformContext = reinterpret_cast<AndroidPlatformContext*>(httpSingleton->m_platformContext.get());
     std::unique_ptr<HttpRequest> httpRequest{
         new HttpRequest(
             asyncBlock,
-            platformContext->GetJavaVm(),
-            platformContext->GetApplicationContext(),
-            platformContext->GetHttpRequestClass(),
-            platformContext->GetHttpResponseClass()
+            env->GetJavaVm(),
+            env->GetApplicationContext(),
+            env->GetHttpRequestClass(),
+            env->GetHttpResponseClass()
         )
     };
 
@@ -49,7 +68,8 @@ void Internal_HCHttpCallPerformAsync(
 
     if (!SUCCEEDED(result))
     {
-        CompleteAsync(asyncBlock, result, 0);
+        HCHttpCallResponseSetNetworkErrorCode(call, result, 0);
+        XAsyncComplete(asyncBlock, result, 0);
         return;
     }
 
@@ -93,6 +113,6 @@ void Internal_HCHttpCallPerformAsync(
     }
     else
     { 
-        CompleteAsync(asyncBlock, E_FAIL, 0);
+        XAsyncComplete(asyncBlock, E_FAIL, 0);
     }
 }

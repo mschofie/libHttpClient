@@ -4,7 +4,7 @@
 #include <httpClient/httpClient.h>
 #include <vector>
 
-HttpRequest::HttpRequest(AsyncBlock* asyncBlock, JavaVM* javaVm, jobject applicationContext, jclass httpRequestClass, jclass httpResponseClass) :
+HttpRequest::HttpRequest(XAsyncBlock* asyncBlock, JavaVM* javaVm, jobject applicationContext, jclass httpRequestClass, jclass httpResponseClass) :
     m_httpRequestInstance(nullptr), 
     m_asyncBlock(asyncBlock),
     m_javaVm(javaVm),
@@ -180,7 +180,7 @@ HRESULT HttpRequest::SetMethodAndBody(const char* method, const char* contentTyp
     return S_OK;
 }
 
-HRESULT HttpRequest::ExecuteAsync(hc_call_handle_t call) 
+HRESULT HttpRequest::ExecuteAsync(HCCallHandle call) 
 {
     JNIEnv* jniEnv = nullptr;
     HRESULT result = GetJniEnv(&jniEnv);
@@ -200,7 +200,7 @@ HRESULT HttpRequest::ExecuteAsync(hc_call_handle_t call)
     return result;
 }
 
-HRESULT HttpRequest::ProcessResponse(hc_call_handle_t call, jobject response) 
+HRESULT HttpRequest::ProcessResponse(HCCallHandle call, jobject response) 
 {
     JNIEnv* jniEnv = nullptr;
     HRESULT result = GetJniEnv(&jniEnv);
@@ -233,7 +233,7 @@ HRESULT HttpRequest::ProcessResponse(hc_call_handle_t call, jobject response)
     return ProcessResponseBody(call, response);
 }
 
-HRESULT HttpRequest::ProcessResponseBody(hc_call_handle_t call, jobject repsonse) 
+HRESULT HttpRequest::ProcessResponseBody(HCCallHandle call, jobject repsonse) 
 {
     JNIEnv* jniEnv = nullptr;
     HRESULT result = GetJniEnv(&jniEnv);

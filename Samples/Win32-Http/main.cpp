@@ -4,7 +4,7 @@
 #include "httpClient\httpClient.h"
 #include "json_cpp\json.h"
 
-std::vector<std::vector<std::string>> ExtractAllHeaders(_In_ hc_call_handle_t call)
+std::vector<std::vector<std::string>> ExtractAllHeaders(_In_ HCCallHandle call)
 {
     uint32_t numHeaders = 0;
     HCHttpCallResponseGetNumHeaders(call, &numHeaders);
@@ -63,8 +63,8 @@ HANDLE g_hActiveThreads[10] = { 0 };
 DWORD g_defaultIdealProcessor = 0;
 DWORD g_numActiveThreads = 0;
 
-async_queue_handle_t g_queue;
-registration_token_t g_callbackToken;
+XTaskQueueHandle g_queue;
+XTaskQueueRegistrationToken g_callbackToken;
 
 DWORD WINAPI background_thread_proc(LPVOID lpParam)
 {
@@ -75,13 +75,8 @@ DWORD WINAPI background_thread_proc(LPVOID lpParam)
         g_stopRequestedHandle.get()
     };
 
-    async_queue_handle_t queue;
-    uint32_t sharedAsyncQueueId = 0;
-    CreateSharedAsyncQueue(
-        sharedAsyncQueueId,
-        AsyncQueueDispatchMode::AsyncQueueDispatchMode_Manual,
-        AsyncQueueDispatchMode::AsyncQueueDispatchMode_Manual,
-        &queue);
+    XTaskQueueHandle queue;
+    XTaskQueueDuplicateHandle(g_queue, &queue);
 
     bool stop = false;
     while (!stop)
@@ -90,11 +85,9 @@ DWORD WINAPI background_thread_proc(LPVOID lpParam)
         switch (dwResult)
         {
         case WAIT_OBJECT_0: // work ready
-            DispatchAsyncQueue(queue, AsyncQueueCallbackType_Work, 0);
-
-            if (!IsAsyncQueueEmpty(queue, AsyncQueueCallbackType_Work))
+            if (XTaskQueueDispatch(queue, XTaskQueuePort::Work, 0))
             {
-                // If there's more pending work, then set the event to process them
+                // If we executed work, set our event again to check next time.
                 SetEvent(g_workReadyHandle.get());
             }
             break;
@@ -102,11 +95,9 @@ DWORD WINAPI background_thread_proc(LPVOID lpParam)
         case WAIT_OBJECT_0 + 1: // completed 
             // Typically completions should be dispatched on the game thread, but
             // for this simple XAML app we're doing it here
-            DispatchAsyncQueue(queue, AsyncQueueCallbackType_Completion, 0);
-
-            if (!IsAsyncQueueEmpty(queue, AsyncQueueCallbackType_Completion))
+            if (XTaskQueueDispatch(queue, XTaskQueuePort::Completion, 0))
             {
-                // If there's more pending completions, then set the event to process them
+                // If we executed a completion set our event again to check next time
                 SetEvent(g_completionReadyHandle.get());
             }
             break;
@@ -117,13 +108,14 @@ DWORD WINAPI background_thread_proc(LPVOID lpParam)
         }
     }
 
+    XTaskQueueCloseHandle(queue);
     return 0;
 }
 
 void CALLBACK HandleAsyncQueueCallback(
     _In_ void* context,
-    _In_ async_queue_handle_t queue,
-    _In_ AsyncQueueCallbackType type
+    _In_ XTaskQueueHandle queue,
+    _In_ XTaskQueuePort type
     )
 {
     UNREFERENCED_PARAMETER(context);
@@ -131,11 +123,11 @@ void CALLBACK HandleAsyncQueueCallback(
 
     switch (type)
     {
-    case AsyncQueueCallbackType::AsyncQueueCallbackType_Work:
+    case XTaskQueuePort::Work:
         SetEvent(g_workReadyHandle.get());
         break;
 
-    case AsyncQueueCallbackType::AsyncQueueCallbackType_Completion:
+    case XTaskQueuePort::Completion:
         SetEvent(g_completionReadyHandle.get());
         break;
     }
@@ -179,11 +171,16 @@ void ShutdownActiveThreads()
     }
 }
 
-int main()
+struct SampleHttpCallAsyncContext
+{
+    HCCallHandle call;
+    bool isJson;
+    std::string filePath;
+};
+
+void DoHttpCall(std::string url, std::string requestBody, bool isJson, std::string filePath)
 {
     std::string method = "GET";
-    std::string url = "https://raw.githubusercontent.com/Microsoft/libHttpClient/master/Tests/TestWebApplication/appsettings.Development.json";
-    std::string requestBody = "";// "{\"test\":\"value\"},{\"test2\":\"value\"},{\"test3\":\"value\"},{\"test4\":\"value\"},{\"test5\":\"value\"},{\"test6\":\"value\"},{\"test7\":\"value\"}";
     bool retryAllowed = true;
     std::vector<std::vector<std::string>> headers;
     std::vector< std::string > header;
@@ -193,19 +190,7 @@ int main()
     header.push_back("1.0");
     headers.push_back(header);
 
-    HCInitialize(nullptr);
-
-    uint32_t sharedAsyncQueueId = 0;
-    CreateSharedAsyncQueue(
-        sharedAsyncQueueId,
-        AsyncQueueDispatchMode::AsyncQueueDispatchMode_Manual,
-        AsyncQueueDispatchMode::AsyncQueueDispatchMode_Manual,
-        &g_queue);
-    RegisterAsyncQueueCallbackSubmitted(g_queue, nullptr, HandleAsyncQueueCallback, &g_callbackToken);
-
-    StartBackgroundThread();
-
-    hc_call_handle_t call = nullptr;
+    HCCallHandle call = nullptr;
     HCHttpCallCreate(&call);
     HCHttpCallRequestSetUrl(call, method.c_str(), url.c_str());
     HCHttpCallRequestSetRequestBodyString(call, requestBody.c_str());
@@ -219,42 +204,58 @@ int main()
 
     printf_s("Calling %s %s\r\n", method.c_str(), url.c_str());
 
-    AsyncBlock* asyncBlock = new AsyncBlock;
-    ZeroMemory(asyncBlock, sizeof(AsyncBlock));
-    asyncBlock->context = call;
+    SampleHttpCallAsyncContext* hcContext =  new SampleHttpCallAsyncContext{ call, isJson, filePath };
+    XAsyncBlock* asyncBlock = new XAsyncBlock;
+    ZeroMemory(asyncBlock, sizeof(XAsyncBlock));
+    asyncBlock->context = hcContext;
     asyncBlock->queue = g_queue;
-    asyncBlock->callback = [](AsyncBlock* asyncBlock)
+    asyncBlock->callback = [](XAsyncBlock* asyncBlock)
     {
         const char* str;
-        HRESULT errCode = S_OK;
+        HRESULT networkErrorCode = S_OK;
         uint32_t platErrCode = 0;
         uint32_t statusCode = 0;
         std::string responseString;
         std::string errMessage;
 
-        hc_call_handle_t call = static_cast<hc_call_handle_t>(asyncBlock->context);
-        HCHttpCallResponseGetNetworkErrorCode(call, &errCode, &platErrCode);
+        SampleHttpCallAsyncContext* hcContext = static_cast<SampleHttpCallAsyncContext*>(asyncBlock->context);
+        HCCallHandle call = hcContext->call;
+        bool isJson = hcContext->isJson;
+        std::string filePath = hcContext->filePath;
+
+        HRESULT hr = XAsyncGetStatus(asyncBlock, false);
+        if (FAILED(hr))
+        {
+            // This should be a rare error case when the async task fails
+            printf_s("Couldn't get HTTP call object 0x%0.8x\r\n", hr);
+            HCHttpCallCloseHandle(call);
+            return;
+        }
+
+        HCHttpCallResponseGetNetworkErrorCode(call, &networkErrorCode, &platErrCode);
         HCHttpCallResponseGetStatusCode(call, &statusCode);
         HCHttpCallResponseGetResponseString(call, &str);
         if (str != nullptr) responseString = str;
         std::vector<std::vector<std::string>> headers = ExtractAllHeaders(call);
 
-        // Uncomment to write binary file to disk
-        //size_t bufferSize = 0;
-        //HCHttpCallResponseGetResponseBodyBytesSize(call, &bufferSize);
-        //uint8_t* buffer = new uint8_t[bufferSize];
-        //size_t bufferUsed = 0;
-        //HCHttpCallResponseGetResponseBodyBytes(call, bufferSize, buffer, &bufferUsed);
-        //HANDLE hFile = CreateFile(L"c:\\test\\test.zip", GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
-        //DWORD bufferWritten = 0;
-        //WriteFile(hFile, buffer, (DWORD)bufferUsed, &bufferWritten, NULL);
-        //CloseHandle(hFile);
-        //delete[] buffer;
+        if (!isJson)
+        {
+            size_t bufferSize = 0;
+            HCHttpCallResponseGetResponseBodyBytesSize(call, &bufferSize);
+            uint8_t* buffer = new uint8_t[bufferSize];
+            size_t bufferUsed = 0;
+            HCHttpCallResponseGetResponseBodyBytes(call, bufferSize, buffer, &bufferUsed);
+            HANDLE hFile = CreateFileA(filePath.c_str(), GENERIC_WRITE, 0, NULL, CREATE_NEW, FILE_ATTRIBUTE_NORMAL, NULL);
+            DWORD bufferWritten = 0;
+            WriteFile(hFile, buffer, (DWORD)bufferUsed, &bufferWritten, NULL);
+            CloseHandle(hFile);
+            delete[] buffer;
+        }
 
         HCHttpCallCloseHandle(call);
 
         printf_s("HTTP call done\r\n");
-        printf_s("Network error code: %d\r\n", errCode);
+        printf_s("Network error code: 0x%0.8x\r\n", networkErrorCode);
         printf_s("HTTP status code: %d\r\n", statusCode);
 
         int i = 0;
@@ -264,7 +265,7 @@ int main()
             i++;
         }
 
-        if (responseString.length() > 0)
+        if (isJson && responseString.length() > 0)
         {
             // Returned string starts with a BOM strip it out.
             uint8_t BOM[] = { 0xef, 0xbb, 0xbf, 0x0 };
@@ -292,9 +293,26 @@ int main()
     HCHttpCallPerformAsync(call, asyncBlock);
 
     WaitForSingleObject(g_exampleTaskDone.get(), INFINITE);
+}
+
+int main()
+{
+    HCInitialize(nullptr);
+
+    XTaskQueueCreate(XTaskQueueDispatchMode::Manual, XTaskQueueDispatchMode::Manual, &g_queue);
+    XTaskQueueRegisterMonitor(g_queue, nullptr, HandleAsyncQueueCallback, &g_callbackToken);
+    HCTraceSetTraceToDebugger(true);
+    StartBackgroundThread();
+
+    std::string url1 = "https://raw.githubusercontent.com/Microsoft/libHttpClient/master/Samples/Win32-Http/TestContent.json";
+    DoHttpCall(url1, "{\"test\":\"value\"},{\"test2\":\"value\"},{\"test3\":\"value\"},{\"test4\":\"value\"},{\"test5\":\"value\"},{\"test6\":\"value\"},{\"test7\":\"value\"}", true, "");
+
+    std::string url2 = "https://github.com/Microsoft/libHttpClient/raw/master/Samples/XDK-Http/Assets/SplashScreen.png";
+    DoHttpCall(url2, "", false, "SplashScreen.png");
 
     ShutdownActiveThreads();
     HCCleanup();
+    XTaskQueueCloseHandle(g_queue);
 
     return 0;
 }

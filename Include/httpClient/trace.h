@@ -1,17 +1,23 @@
 // Copyright (c) Microsoft Corporation
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+#if !defined(__cplusplus)
+    #error C++11 required
+#endif
 
 #pragma once
+
+#include <httpClient/pal.h>
 
 #ifndef HC_TRACE_BUILD_LEVEL
 #define HC_TRACE_BUILD_LEVEL HC_PRIVATE_TRACE_LEVEL_VERBOSE
 #endif
 
+extern "C"
+{
 
 /////////////////////////////////////////////////////////////////////////////////////////
 // Tracing APIs
 //
-
 
 //------------------------------------------------------------------------------
 // Configuration
@@ -105,38 +111,38 @@
 /// <summary>
 /// Diagnostic level used by tracing
 /// </summary>
-typedef enum HCTraceLevel
+enum class HCTraceLevel : uint32_t
 {
     /// <summary>
     /// No tracing
     /// </summary>
-    HCTraceLevel_Off = HC_PRIVATE_TRACE_LEVEL_OFF,
+    Off = HC_PRIVATE_TRACE_LEVEL_OFF,
 
     /// <summary>
     /// Trace only errors
     /// </summary>
-    HCTraceLevel_Error = HC_PRIVATE_TRACE_LEVEL_ERROR,
+    Error = HC_PRIVATE_TRACE_LEVEL_ERROR,
 
     /// <summary>
     /// Trace warnings and errors
     /// </summary>
-    HCTraceLevel_Warning = HC_PRIVATE_TRACE_LEVEL_WARNING,
+    Warning = HC_PRIVATE_TRACE_LEVEL_WARNING,
 
     /// <summary>
     /// Trace important, warnings and errors
     /// </summary>
-    HCTraceLevel_Important = HC_PRIVATE_TRACE_LEVEL_IMPORTANT,
+    Important = HC_PRIVATE_TRACE_LEVEL_IMPORTANT,
 
     /// <summary>
     /// Trace info, important, warnings and errors
     /// </summary>
-    HCTraceLevel_Information = HC_PRIVATE_TRACE_LEVEL_INFORMATION,
+    Information = HC_PRIVATE_TRACE_LEVEL_INFORMATION,
 
     /// <summary>
     /// Trace everything
     /// </summary>
-    HCTraceLevel_Verbose = HC_PRIVATE_TRACE_LEVEL_VERBOSE,
-} HCTraceLevel;
+    Verbose = HC_PRIVATE_TRACE_LEVEL_VERBOSE,
+};
 
 /// <summary>
 /// Sets the trace level for the library.  Traces are sent the debug output
@@ -145,7 +151,7 @@ typedef enum HCTraceLevel
 /// <returns>Result code for this API operation.  Possible values are S_OK, E_INVALIDARG, or E_FAIL.</returns>
 STDAPI HCSettingsSetTraceLevel(
     _In_ HCTraceLevel traceLevel
-    ) HC_NOEXCEPT;
+    ) noexcept;
 
 /// <summary>
 /// Gets the trace level for the library
@@ -154,15 +160,15 @@ STDAPI HCSettingsSetTraceLevel(
 /// <returns>Result code for this API operation.  Possible values are S_OK, E_INVALIDARG, or E_FAIL.</returns>
 STDAPI HCSettingsGetTraceLevel(
     _Out_ HCTraceLevel* traceLevel
-    ) HC_NOEXCEPT;
+    ) noexcept;
 
 /// <summary>
 /// Register callback for tracing so that the client can merge tracing into their
 /// own traces. 
 /// </summary>
-typedef void (HCTraceCallback)(
+typedef void (CALLBACK HCTraceCallback)(
     _In_z_ const char* areaName,
-    _In_ enum HCTraceLevel level,
+    _In_ HCTraceLevel level,
     _In_ uint64_t threadId,
     _In_ uint64_t timestamp,
     _In_z_ const char* message
@@ -172,13 +178,15 @@ typedef void (HCTraceCallback)(
 /// Set client callback for tracing 
 /// </summary>
 /// <param name="callback">Trace callback</param>
-STDAPI_(void) HCTraceSetClientCallback(_In_opt_ HCTraceCallback* callback);
+/// <returns></returns>
+STDAPI_(void) HCTraceSetClientCallback(_In_opt_ HCTraceCallback* callback) noexcept;
 
 /// <summary>
 /// Sets or unsets if the trace is sent to the debugger.
 /// </summary>
 /// <param name="traceToDebugger">If True, sends the trace to the debugger.</param>
-STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger);
+/// <returns></returns>
+STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger) noexcept;
 
 
 //------------------------------------------------------------------------------
@@ -202,7 +210,7 @@ STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger);
 #endif
 
 #if HC_TRACE_ERROR_ENABLE
-    #define HC_TRACE_ERROR(area, msg, ...)  HC_TRACE_MESSAGE(area, HCTraceLevel_Error, msg, ##__VA_ARGS__)
+    #define HC_TRACE_ERROR(area, msg, ...)  HC_TRACE_MESSAGE(area, HCTraceLevel::Error, msg, ##__VA_ARGS__)
     #define HC_TRACE_ERROR_HR(area, failedHr, msg) HC_TRACE_ERROR(area, "%hs (hr=0x%08x)", msg, failedHr)
 #else
     #define HC_TRACE_ERROR(area, msg, ...)
@@ -210,7 +218,7 @@ STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger);
 #endif
 
 #if HC_TRACE_WARNING_ENABLE
-    #define HC_TRACE_WARNING(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel_Warning, msg, ##__VA_ARGS__)
+    #define HC_TRACE_WARNING(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel::Warning, msg, ##__VA_ARGS__)
     #define HC_TRACE_WARNING_HR(area, failedHr, msg) HC_TRACE_WARNING(area, "%hs (hr=0x%08x)", msg, failedHr)
 #else
     #define HC_TRACE_WARNING(area, msg, ...)
@@ -218,24 +226,24 @@ STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger);
 #endif
 
 #if HC_TRACE_IMPORTANT_ENABLE
-    #define HC_TRACE_IMPORTANT(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel_Important, msg, ##__VA_ARGS__)
-    #define HC_TRACE_SCOPE_IMPORTANT(area) HC_TRACE_SCOPE(area, HCTraceLevel_Important)
+    #define HC_TRACE_IMPORTANT(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel::Important, msg, ##__VA_ARGS__)
+    #define HC_TRACE_SCOPE_IMPORTANT(area) HC_TRACE_SCOPE(area, HCTraceLevel::Important)
 #else
     #define HC_TRACE_IMPORTANT(area, msg, ...)
     #define HC_TRACE_SCOPE_IMPORTANT(area)
 #endif
 
 #if HC_TRACE_INFORMATION_ENABLE
-    #define HC_TRACE_INFORMATION(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel_Information, msg, ##__VA_ARGS__)
-    #define HC_TRACE_SCOPE_INFORMATION(area) HC_TRACE_SCOPE(area, HCTraceLevel_Information)
+    #define HC_TRACE_INFORMATION(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel::Information, msg, ##__VA_ARGS__)
+    #define HC_TRACE_SCOPE_INFORMATION(area) HC_TRACE_SCOPE(area, HCTraceLevel::Information)
 #else
     #define HC_TRACE_INFORMATION(area, msg, ...)
     #define HC_TRACE_SCOPE_INFORMATION(area)
 #endif
 
 #if HC_TRACE_VERBOSE_ENABLE
-    #define HC_TRACE_VERBOSE(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel_Verbose, msg, ##__VA_ARGS__)
-    #define HC_TRACE_SCOPE_VERBOSE(area) HC_TRACE_SCOPE(area, HCTraceLevel_Verbose)
+    #define HC_TRACE_VERBOSE(area, msg, ...) HC_TRACE_MESSAGE(area, HCTraceLevel::Verbose, msg, ##__VA_ARGS__)
+    #define HC_TRACE_SCOPE_VERBOSE(area) HC_TRACE_SCOPE(area, HCTraceLevel::Verbose)
 #else
     #define HC_TRACE_VERBOSE(area, msg, ...)
     #define HC_TRACE_SCOPE_VERBOSE(area)
@@ -270,10 +278,29 @@ STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger);
     #define HC_DEFINE_TRACE_AREA(name, verbosity)
     #define HC_DECLARE_TRACE_AREA(name)
     #define HC_TRACE_SET_VERBOSITY(area, level)
-    #define HC_TRACE_GET_VERBOSITY(area) HCTraceLevel_Off
+    #define HC_TRACE_GET_VERBOSITY(area) HCTraceLevel::Off
 #endif
 
+//------------------------------------------------------------------------------
+// Platform Hooks
+//------------------------------------------------------------------------------
+typedef uint64_t (CALLBACK HCTracePlatformThisThreadIdCallback)(void*);
+typedef void (CALLBACK HCTracePlatformWriteMessageToDebuggerCallback)(char const*, HCTraceLevel, char const*, void*);
 
+/// <summary>
+/// Sets the Platform Callbacks.
+/// </summary>
+/// <param name="threadIdCallback">The thread ID callback.</param>
+/// <param name="threadIdContext">The thread ID context.</param>
+/// <param name="writeToDebuggerCallback">The write to debbugger callback.</param>
+/// <param name="writeToDebuggerContext">The write to debbugger context.</param>
+/// <returns>Result code for this API operation.  Possible values are S_OK, or E_HC_NOT_INITIALISED.</returns>
+STDAPI HCTraceSetPlatformCallbacks(
+    _In_ HCTracePlatformThisThreadIdCallback* threadIdCallback,
+    _In_opt_ void* threadIdContext,
+    _In_ HCTracePlatformWriteMessageToDebuggerCallback* writeToDebuggerCallback,
+    _In_opt_ void* writeToDebuggerContext
+    ) noexcept;
 
 //------------------------------------------------------------------------------
 // Implementation
@@ -293,35 +320,62 @@ STDAPI_(void) HCTraceSetTraceToDebugger(_In_ bool traceToDebugger);
 typedef struct HCTraceImplArea
 {
     char const* const Name;
-    enum HCTraceLevel Verbosity;
+    HCTraceLevel Verbosity;
 } HCTraceImplArea;
 
-inline
-void STDAPIVCALLTYPE HCTraceImplSetAreaVerbosity(struct HCTraceImplArea* area, enum HCTraceLevel verbosity)
+/// <summary>
+/// Set the verbosity level of an trace area. This should be accessed through macros, such as 
+/// HC_TRACE_SET_VERBOSITY, rather than called directly.
+/// </summary>
+/// <param name="area">The trace area.</param>
+/// <param name="verbosity">The verbosity level.</param>
+/// <returns></returns>
+EXTERN_C inline
+void STDAPIVCALLTYPE HCTraceImplSetAreaVerbosity(
+    struct HCTraceImplArea* area,
+    HCTraceLevel verbosity
+    ) noexcept
 {
     area->Verbosity = verbosity;
 }
 
-inline
-enum HCTraceLevel HCTraceImplGetAreaVerbosity(struct HCTraceImplArea* area)
+/// <summary>
+/// Get the trace verbosity level of an trace area. This should be accessed through macros, such as 
+/// HC_TRACE_GET_VERBOSITY, rather than called directly.
+/// </summary>
+/// <param name="area">The trace area.</param>
+/// <returns>The verbosity level of the area.</returns>
+EXTERN_C inline
+HCTraceLevel STDAPIVCALLTYPE HCTraceImplGetAreaVerbosity(struct HCTraceImplArea* area) noexcept
 {
     return area->Verbosity;
 }
 
+/// <summary>
+/// Send a trace message. This should be accessed through macros, such as HC_TRACE_MESSAGE, 
+/// rather than called directly.
+/// </summary>
+/// <param name="area">The trace area.</param>
+/// <param name="level">The trace level.</param>
+/// <param name="format">The message format and arguments.</param>
+/// <returns></returns>
 STDAPI_(void) HCTraceImplMessage(
     struct HCTraceImplArea const* area,
-    enum HCTraceLevel level,
+    HCTraceLevel level,
     _Printf_format_string_ char const* format,
     ...
-);
+) noexcept;
 
+STDAPI_(uint64_t) HCTraceImplScopeId() noexcept;
+
+}
 
 #if defined(__cplusplus)
 class HCTraceImplScopeHelper
 {
 public:
-    HCTraceImplScopeHelper(HCTraceImplArea const* area, HCTraceLevel level, char const* scope);
-    ~HCTraceImplScopeHelper();
+    HCTraceImplScopeHelper(HCTraceImplArea const* area, HCTraceLevel level, char const* scope) noexcept;
+    ~HCTraceImplScopeHelper() noexcept;
 
 private:
     HCTraceImplArea const* m_area;
@@ -329,4 +383,32 @@ private:
     char const* const m_scope;
     unsigned long long const m_id;
 };
+
+/// <summary>
+/// HCTraceImplScopeHelper constructor. This should be accessed through macros, such as HC_TRACE_SCOPE, 
+/// rather than called directly.
+/// </summary>
+/// <param name="area">The trace area.</param>
+/// <param name="level">The trace level.</param>
+/// <param name="scope">The trace scope.</param>
+/// <returns></returns>
+inline
+HCTraceImplScopeHelper::HCTraceImplScopeHelper(
+    HCTraceImplArea const* area,
+    HCTraceLevel level, char const* scope
+) noexcept
+    : m_area{ area }, m_level{ level }, m_scope{ scope }, m_id{ HCTraceImplScopeId() }
+{
+    HCTraceImplMessage(m_area, m_level, ">>> %s (%016llX)", m_scope, m_id);
+}
+
+/// <summary>
+/// HCTraceImplScopeHelper destructor.
+/// </summary>
+/// <returns></returns>
+inline
+HCTraceImplScopeHelper::~HCTraceImplScopeHelper() noexcept
+{
+    HCTraceImplMessage(m_area, m_level, "<<< %s (%016llX)", m_scope, m_id);
+}
 #endif // defined(__cplusplus)

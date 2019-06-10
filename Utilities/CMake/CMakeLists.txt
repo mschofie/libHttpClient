@@ -4,9 +4,9 @@ if( SHIP )
     set (PROJECT_NAME libHttpClient.Ship)
 elseif( UNITTEST )
     if( TAEF )
-        set (PROJECT_NAME libHttpClient.UnitTest.141.TAEF)
+        set (PROJECT_NAME libHttpClient.UnitTest.TAEF)
     elseif( TE )
-        set (PROJECT_NAME libHttpClient.UnitTest.141.TE)
+        set (PROJECT_NAME libHttpClient.UnitTest.TE)
     endif()
 else()
     if( XDK )
@@ -31,7 +31,9 @@ endif()
 
 project (${PROJECT_NAME})
 
-if(MSVC_VERSION GREATER 1909)
+if(MSVC_VERSION GREATER 1919)
+  set(COMPILER_VERSION "16")
+elseif(MSVC_VERSION GREATER 1909)
   set(COMPILER_VERSION "15")
 elseif(MSVC_VERSION GREATER 1899)
   set(COMPILER_VERSION "14")
@@ -85,29 +87,37 @@ set(Public_Source_Files
     ../../../include/httpClient/httpClient.h
     ../../../include/httpClient/httpProvider.h
     ../../../include/httpClient/mock.h
-    ../../../include/httpClient/async.h
-    ../../../include/httpClient/asyncProvider.h
-    ../../../include/httpClient/asyncQueue.h
+    ../../../include/xasync.h
+    ../../../include/xasyncProvider.h
+    ../../../include/xtaskQueue.h
     ../../../include/httpClient/trace.h
     ../../../include/httpClient/pal.h
+    ../../../include/httpClient/async.h
     )
 
 set(Task_Source_Files
-    ../../../Source/Task/AsyncQueue.cpp
     ../../../Source/Task/AsyncLib.cpp
-    ../../../Source/Task/CriticalThread.cpp
-    ../../../Source/Task/timer.h
-    ../../../Source/Task/Callback.h
-    ../../../Source/Task/Callback_STL.h
-    ../../../Source/Task/CriticalThread.h
+    ../../../Source/Task/AtomicVector.h
+    ../../../Source/Task/LocklessList.h
+    ../../../Source/Task/referenced_ptr.h
+    ../../../Source/Task/StaticArray.h
+    ../../../Source/Task/TaskQueue.cpp
+    ../../../Source/Task/TaskQueueImpl.h
+    ../../../Source/Task/TaskQueueP.h
+    ../../../Source/Task/ThreadPool.h
+    ../../../Source/Task/WaitTimer.h
+    ../../../Source/Task/XTaskQueuePriv.h
     )
 
 set(Task_Windows_Source_Files
-    ../../../Source/Task/timer_win32.cpp
+    ../../../Source/Task/ThreadPool_win32.cpp
+    ../../../Source/Task/WaitTimer_win32.cpp
     )
 
 set(Task_Android_Source_Files
-    ../../../Source/Task/timer_cpp.cpp
+    ../../../Include/httpClient/async_jvm.h
+    ../../../Source/Task/ThreadPool_stl.cpp
+    ../../../Source/Task/WaitTimer_stl.cpp
     )
 
 set(Global_Source_Files
@@ -130,6 +140,7 @@ set(WinRT_WebSocket_Source_Files
 set(Win32_WebSocket_Source_Files
     ../../../Source/WebSocket/Websocketpp/websocketpp_websocket.cpp
     ../../../Source/WebSocket/Websocketpp/x509_cert_utilities.hpp
+    ../../../Source/WebSocket/WinHTTP/winhttp_websocket.cpp
     )
 
 set(Android_WebSocket_Source_Files
@@ -138,8 +149,8 @@ set(Android_WebSocket_Source_Files
     )
 
 set(Mock_Source_Files
-    ../../../Source/Mock/mock.cpp
-    ../../../Source/Mock/mock.h
+    ../../../Source/Mock/lhc_mock.cpp
+    ../../../Source/Mock/lhc_mock.h
     ../../../Source/Mock/mock_publics.cpp
     )
 
@@ -161,7 +172,7 @@ set(Common_Windows_Source_Files
     ../../../Source/Common/Win/utils_win.cpp
     ../../../Source/Common/Win/utils_win.h
     )
-    
+
 set(Common_Android_Source_Files
     ../../../Source/Common/Android/utils_android.cpp
     ../../../Source/Common/Android/utils_android.h
@@ -243,10 +254,12 @@ set(TE_UnitTests_Source_Files
 
 set(UnitTests_Source_Files_Tests
     ../../../Tests/UnitTests/Tests/AsyncBlockTests.cpp
-    ../../../Tests/UnitTests/Tests/AsyncQueueTests.cpp
-    ../../../Tests/UnitTests/Tests/HttpTests.cpp
-    ../../../Tests/UnitTests/Tests/MockTests.cpp
+    ../../../Tests/UnitTests/Tests/CallbackThunk.h
     ../../../Tests/UnitTests/Tests/GlobalTests.cpp
+    ../../../Tests/UnitTests/Tests/HttpTests.cpp
+    ../../../Tests/UnitTests/Tests/LocklessListTests.cpp
+    ../../../Tests/UnitTests/Tests/MockTests.cpp
+    ../../../Tests/UnitTests/Tests/TaskQueueTests.cpp
     ../../../Tests/UnitTests/Tests/WebsocketTests.cpp
     )
 
@@ -330,7 +343,7 @@ endif()
 if( BUILDWIN32 )
     source_group("C++ Source\\HTTP\\WinHttp" FILES ${WinHttp_HTTP_Source_Files})
     source_group("C++ Source\\Common\\Win" FILES ${Common_Windows_Source_Files})
-    source_group("C++ Source\\WebSocket\\Websocketpp" FILES ${Win32_WebSocket_Source_Files})
+    source_group("C++ Source\\WebSocket\\Win" FILES ${Win32_WebSocket_Source_Files})
     source_group("C++ Source\\Logger\\Win" FILES ${Windows_Logger_Source_Files})
     source_group("C++ Source\\Task\\Win" FILES ${Task_Windows_Source_Files})
 
@@ -396,4 +409,3 @@ set(CMAKE_STATIC_LINKER_FLAGS "/INCREMENTAL:NO")
 message(STATUS "CMAKE_SYSTEM_VERSION='${CMAKE_SYSTEM_VERSION}'")
 message(STATUS "CMAKE_SYSTEM_NAME='${CMAKE_SYSTEM_NAME}'")
 message(STATUS "SHORT_VERSION='${SHORT_VERSION}'")
-

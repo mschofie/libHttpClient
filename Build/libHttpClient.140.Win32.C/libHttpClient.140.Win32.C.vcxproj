@@ -46,7 +46,7 @@
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)'=='Release'" Label="Configuration">
     <UseDebugLibraries>false</UseDebugLibraries>
-    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <WholeProgramOptimization>false</WholeProgramOptimization>
     <LinkIncremental>false</LinkIncremental>
   </PropertyGroup>
   <PropertyGroup Label="Configuration">
@@ -127,26 +127,32 @@
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Logger\log_publics.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Logger\trace.cpp" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Logger\trace_internal.h" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Mock\mock.cpp" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Mock\mock.h" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Mock\lhc_mock.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Mock\lhc_mock.h" />
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Mock\mock_publics.cpp" />
     <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\AsyncLib.cpp" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\AsyncQueue.cpp" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\Callback.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\Callback_STL.h" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\CriticalThread.cpp" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\CriticalThread.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\timer.h" />
-    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\timer_win32.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\AtomicVector.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\LocklessList.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\StaticArray.h" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\TaskQueue.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\TaskQueueImpl.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\TaskQueueP.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\ThreadPool.h" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\ThreadPool_win32.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\WaitTimer.h" />
+    <ClCompile Include="$(MSBuildThisFileDirectory)..\..\Source\Task\WaitTimer_win32.cpp" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\XTaskQueuePriv.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Source\Task\referenced_ptr.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\async.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\asyncProvider.h" />
-    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\asyncQueue.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\config.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\httpClient.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\httpProvider.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\mock.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\pal.h" />
     <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\httpClient\trace.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\XAsync.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\XAsyncProvider.h" />
+    <ClInclude Include="$(MSBuildThisFileDirectory)..\..\Include\XTaskQueue.h" />
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

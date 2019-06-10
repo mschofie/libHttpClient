@@ -1,5 +1,8 @@
 // Copyright (c) Microsoft Corporation
 // Licensed under the MIT license. See LICENSE file in the project root for full license information.
+#if !defined(__cplusplus)
+    #error C++11 required
+#endif
 
 #pragma once
 #pragma warning(disable: 4062) // enumerator 'identifier' in switch of enum 'enumeration' is not handled
@@ -11,7 +14,7 @@
 
 #include <httpClient/config.h>
 
-#if HC_PLATFORM == HC_PLATFORM_WIN32 || HC_PLATFORM == HC_PLATFORM_UWP || HC_PLATFORM == HC_PLATFORM_XDK
+#if HC_PLATFORM_IS_MICROSOFT
 
 #ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN
@@ -50,6 +53,13 @@
 #define E_TIME_CRITICAL_THREAD           __HRESULT_FROM_WIN32(ERROR_TIME_CRITICAL_THREAD) // 0x800701A0
 #endif
 
+#ifndef E_NO_TASK_QUEUE
+#ifndef ERROR_NO_TASK_QUEUE
+#define ERROR_NO_TASK_QUEUE 0x1AB
+#endif
+#define E_NO_TASK_QUEUE                  __HRESULT_FROM_WIN32(ERROR_NO_TASK_QUEUE) // 0x800701AB
+#endif
+
 #ifndef E_NOT_SUPPORTED
 #define E_NOT_SUPPORTED                  __HRESULT_FROM_WIN32(ERROR_NOT_SUPPORTED) // 0x80070032
 #endif
@@ -58,7 +68,7 @@
 #define E_NOT_SUFFICIENT_BUFFER          __HRESULT_FROM_WIN32(ERROR_INSUFFICIENT_BUFFER) // 0x8007007A
 #endif
 
-#else
+#else // !HC_PLATFORM_IS_MICROSOFT
 
 #ifndef HC_ANDROID_API
 #define HC_ANDROID_API (HC_PLATFORM == HC_PLATFORM_ANDROID)
@@ -71,6 +81,10 @@ typedef int32_t HRESULT;
 
 #ifndef __cdecl
 #define __cdecl 
+#endif
+
+#ifndef __stdcal
+#define __stdcall
 #endif
 
 #ifndef __forceinline 
@@ -128,6 +142,7 @@ typedef void* HANDLE;
 #define E_UNEXPECTED                            _HRESULTYPEDEF_(0x8000FFFFL)
 #define E_POINTER                               _HRESULTYPEDEF_(0x80004003L)
 #define E_TIME_CRITICAL_THREAD                  _HRESULTYPEDEF_(0x800701A0L)
+#define E_NO_TASK_QUEUE                         _HRESULTYPEDEF_(0x800701ABL)
 #define E_NOT_SUPPORTED                         _HRESULTYPEDEF_(0x80070032L)
 #define E_NOT_SUFFICIENT_BUFFER                 _HRESULTYPEDEF_(0x8007007AL)
 #define E_NOINTERFACE                           _HRESULTYPEDEF_(0x80004002L)
@@ -227,6 +242,10 @@ typedef struct _LIST_ENTRY {
 #define _In_reads_(size) 
 #endif
 
+#ifndef _In_reads_opt_
+#define _In_reads_opt_(size) 
+#endif
+
 #ifndef _In_reads_bytes_
 #define _In_reads_bytes_(size) 
 #endif
@@ -279,6 +298,10 @@ typedef struct _LIST_ENTRY {
 #define _Out_writes_bytes_opt_(size)
 #endif
 
+#ifndef _Out_writes_bytes_to_
+#define _Out_writes_bytes_to_(size, buffer)
+#endif
+
 #ifndef _Out_writes_bytes_to_opt_
 #define _Out_writes_bytes_to_opt_(size, buffer)
 #endif
@@ -327,6 +350,10 @@ typedef struct _LIST_ENTRY {
 #define _Ret_z_
 #endif
 
+#ifndef _Deref_out_opt_
+#define _Deref_out_opt_
+#endif
+
 #ifndef __analysis_assume
 #define __analysis_assume(condition)
 #endif
@@ -343,13 +370,63 @@ typedef struct _LIST_ENTRY {
 #define STDAPI_(type)           EXTERN_C type STDAPIVCALLTYPE
 #endif
 
-#endif
+#ifndef DEFINE_ENUM_FLAG_OPERATORS
+    #ifdef __cplusplus
 
-#ifdef __cplusplus
-#define HC_NOEXCEPT noexcept
-#else
-#define HC_NOEXCEPT
-#endif
+    extern "C++" {
+
+        template <size_t S>
+        struct _ENUM_FLAG_INTEGER_FOR_SIZE;
+
+        template <>
+        struct _ENUM_FLAG_INTEGER_FOR_SIZE<1>
+        {
+            typedef int8_t type;
+        };
+
+        template <>
+        struct _ENUM_FLAG_INTEGER_FOR_SIZE<2>
+        {
+            typedef int16_t type;
+        };
+
+        template <>
+        struct _ENUM_FLAG_INTEGER_FOR_SIZE<4>
+        {
+            typedef int32_t type;
+        };
+
+        template <>
+        struct _ENUM_FLAG_INTEGER_FOR_SIZE<8>
+        {
+            typedef int64_t type;
+        };
+
+        // used as an approximation of std::underlying_type<T>
+        template <class T>
+        struct _ENUM_FLAG_SIZED_INTEGER
+        {
+            typedef typename _ENUM_FLAG_INTEGER_FOR_SIZE<sizeof(T)>::type type;
+        };
+
+    }
+
+    #define DEFINE_ENUM_FLAG_OPERATORS(ENUMTYPE) \
+    extern "C++" { \
+    inline ENUMTYPE operator | (ENUMTYPE a, ENUMTYPE b) throw() { return ENUMTYPE(((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)a) | ((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)b)); } \
+    inline ENUMTYPE &operator |= (ENUMTYPE &a, ENUMTYPE b) throw() { return (ENUMTYPE &)(((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type &)a) |= ((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)b)); } \
+    inline ENUMTYPE operator & (ENUMTYPE a, ENUMTYPE b) throw() { return ENUMTYPE(((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)a) & ((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)b)); } \
+    inline ENUMTYPE &operator &= (ENUMTYPE &a, ENUMTYPE b) throw() { return (ENUMTYPE &)(((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type &)a) &= ((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)b)); } \
+    inline ENUMTYPE operator ~ (ENUMTYPE a) throw() { return ENUMTYPE(~((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)a)); } \
+    inline ENUMTYPE operator ^ (ENUMTYPE a, ENUMTYPE b) throw() { return ENUMTYPE(((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)a) ^ ((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)b)); } \
+    inline ENUMTYPE &operator ^= (ENUMTYPE &a, ENUMTYPE b) throw() { return (ENUMTYPE &)(((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type &)a) ^= ((_ENUM_FLAG_SIZED_INTEGER<ENUMTYPE>::type)b)); } \
+    }
+    #else
+    #define DEFINE_ENUM_FLAG_OPERATORS(ENUMTYPE) // NOP, C allows these operators.
+    #endif
+#endif // DEFINE_ENUM_FLAG_OPERATORS
+
+#endif // HC_PLATFORM_IS_MICROSOFT
 
 #define FACILITY_XBOX 2339
 #define MAKE_E_HC(code)                 MAKE_HRESULT(1, FACILITY_XBOX, code)
@@ -360,24 +437,34 @@ typedef struct _LIST_ENTRY {
 #define E_HC_CONNECT_ALREADY_CALLED     MAKE_E_HC(0x5005)
 #define E_HC_NO_NETWORK                 MAKE_E_HC(0x5006)
 
-typedef uint32_t hc_memory_type;
-typedef struct HC_WEBSOCKET* hc_websocket_handle_t;
-typedef struct HC_CALL* hc_call_handle_t;
-typedef struct HC_CALL* hc_mock_call_handle;
+typedef uint32_t HCMemoryType;
+typedef struct HC_WEBSOCKET* HCWebsocketHandle;
+typedef struct HC_CALL* HCCallHandle;
+typedef struct HC_CALL* HCMockCallHandle;
+typedef struct HC_PERFORM_ENV* HCPerformEnv;
+
+extern "C"
+{
 
 // Error codes from https://www.iana.org/assignments/websocket/websocket.xml#close-code-number
-typedef enum HCWebSocketCloseStatus
+// and from https://docs.microsoft.com/en-us/windows/desktop/api/winhttp/ne-winhttp-_winhttp_web_socket_close_status
+// and from https://docs.microsoft.com/en-us/windows/desktop/winhttp/error-messages
+enum class HCWebSocketCloseStatus : uint32_t
 {
-    HCWebSocketCloseStatus_Normal = 1000,
-    HCWebSocketCloseStatus_GoingAway = 1001,
-    HCWebSocketCloseStatus_ProtocolError = 1002,
-    HCWebSocketCloseStatus_Unsupported = 1003,
-    HCWebSocketCloseStatus_AbnormalClose = 1006,
-    HCWebSocketCloseStatus_InconsistentDatatype = 1007,
-    HCWebSocketCloseStatus_PolicyViolation = 1008,
-    HCWebSocketCloseStatus_TooLarge = 1009,
-    HCWebSocketCloseStatus_NegotiateError = 1010,
-    HCWebSocketCloseStatus_ServerTerminate = 1011,
-    HCWebSocketCloseStatus_UnknownError = 4000
-} HCWebSocketCloseStatus;
+    Normal = 1000,
+    GoingAway = 1001,
+    ProtocolError = 1002,
+    Unsupported = 1003,
+    EmptyStatus = 1005,
+    AbnormalClose = 1006,
+    InconsistentDatatype = 1007,
+    PolicyViolation = 1008,
+    TooLarge = 1009,
+    NegotiateError = 1010,
+    ServerTerminate = 1011,
+    HandshakeError = 1015,
+    UnknownError = 4000,
+    ErrorWinhttpTimeout = 12002
+};
 
+}

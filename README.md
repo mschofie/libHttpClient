@@ -1,19 +1,19 @@
 ## Welcome!
 
-libHttpClient provides a platform abstraction layer for HTTP and WebSocket, and is designed for use by the Microsoft Xbox Live Service API (XSAPI) [https://github.com/Microsoft/xbox-live-api] and game devs.  If you want to contribute to the project, please talk to us to avoid overlap.
+libHttpClient provides a platform abstraction layer for HTTP and WebSocket, and is designed for use by the Microsoft Xbox Live Service API [(XSAPI)](https://github.com/Microsoft/xbox-live-api) and game devs.  If you want to contribute to the project, please talk to us to avoid overlap.
 
 ## Goals
 
 - libHttpClient provides a **platform abstraction layer** for **HTTP** and **WebSocket**
 - Stock implementations that call **native platform HTTP / WebSocket APIs** on UWP, XDK ERA, iOS, Android 
 - Caller can add support for **other platforms via callback** API
-- Sample showing off an **HTTP implementation via Curl** https://github.com/curl/curl via this callback
+- Sample showing off an [**HTTP implementation via Curl**](https://github.com/curl/curl) via this callback
 - Designed around the needs of **professional game developers** that use Xbox Live
-- Will be **used by** the Microsoft Xbox Live Service API (XSAPI) [https://github.com/Microsoft/xbox-live-api]
+- Will be **used by** the Microsoft Xbox Live Service API [(XSAPI)](https://github.com/Microsoft/xbox-live-api)
 - Builds for **UWP, XDK ERA, Win32, iOS, and Android**
 - Public API is a **flat C API**
 - **Asynchronous** API
-- Public API **supports simple P/Invoke** without needing to use the "C#/.NET P/Invoke Interop SDK" or C++/CLI  [https://en.wikipedia.org/wiki/Platform_Invocation_Services#C.23.2F.NET_P.2FInvoke_Interop_SDK]
+- Public API **supports simple P/Invoke** without needing to use the ["C#/.NET P/Invoke Interop SDK" or C++/CLI](https://en.wikipedia.org/wiki/Platform_Invocation_Services#C.23.2F.NET_P.2FInvoke_Interop_SDK)
 - Public APIs to **manage async tasks** 
 - Async data can be returned to a specific game thread so the **game doesn't need to marshal the data between threads**
 - **No streams** support
@@ -21,7 +21,7 @@ libHttpClient provides a platform abstraction layer for HTTP and WebSocket, and 
 - **Does not throw exceptions** as a means of non-fatal error reporting
 - Caller controlled **memory allocation** via callback API (similar to XDK's XMemAlloc)
 - Built-in **logging** support to either debug output and/or callback
-- **Built in retry** support according to Xbox Live best practices (obey Retry-After header, jitter wait, etc) according to https://developer.microsoft.com/en-us/games/xbox/docs/xboxlive/using-xbox-live/best-practices/best-practices-for-calling-xbox-live
+- **Built in retry** support according to Xbox Live best practices (obey Retry-After header, jitter wait, etc) according to https://docs.microsoft.com/en-us/windows/uwp/xbox-live/using-xbox-live/best-practices/best-practices-for-calling-xbox-live#retry-logic-best-practices
 - **Xbox Live throttle** handling logic
 - Built-in API support to switch to **mock layer**
 - **Open source** project on GitHub
@@ -36,12 +36,12 @@ libHttpClient provides a platform abstraction layer for HTTP and WebSocket, and 
 1. Optionally call HCMemSetFunctions() to control memory allocations
 1. Call HCInitialize()
 1. Optionally call HCSettingsSet*()
-1. Call HCHttpCallCreate() to create a new hc_call_handle_t
-1. Call HCHttpCallRequestSet*() to prepare the hc_call_handle_t
-1. Call HCHttpCallPerform() to perform an HTTP call using the hc_call_handle_t.  
+1. Call HCHttpCallCreate() to create a new HCCallHandle
+1. Call HCHttpCallRequestSet*() to prepare the HCCallHandle
+1. Call HCHttpCallPerform() to perform an HTTP call using the HCCallHandle.  
 1. The perform call is asynchronous, so the work will be done on a background thread which calls DispatchAsyncQueue( ..., AsyncQueueCallbackType_Work ).  The results will return to the callback on the thread that calls DispatchAsyncQueue( ..., AsyncQueueCallbackType_Completion ).
-1. Call HCHttpCallResponseGet*() to get the HTTP response of the hc_call_handle_t
-1. Call HCHttpCallCleanup() to cleanup the hc_call_handle_t
+1. Call HCHttpCallResponseGet*() to get the HTTP response of the HCCallHandle
+1. Call HCHttpCallCloseHandle() to cleanup the HCCallHandle
 1. Repeat 4-8 for each new HTTP call
 1. Call HCCleanup() at shutdown before your memory manager set in step 1 is shutdown
 
@@ -49,7 +49,7 @@ libHttpClient provides a platform abstraction layer for HTTP and WebSocket, and 
 
 * On UWP, XDK ERA, iOS, and Android, HCHttpCallPerform() will call native platform APIs
 * Optionally call HCSetHttpCallPerformFunction() to do your own HTTP handling using HCHttpCallRequestGet*(), HCHttpCallResponseSet*(), and HCSettingsGet*()
-* See sample CustomHttpImplWithCurl how to use this callback plus Curl https://github.com/curl/curl to make an HTTP implementation using Curl.
+* See sample CustomHttpImplWithCurl how to use this callback plus [Curl](https://github.com/curl/curl) to make an HTTP implementation using Curl.
 
 ## How to clone repo
 
@@ -65,13 +65,6 @@ If you already cloned the repo, you can initialize submodules with:
     git submodule update --init --recursive
 
 Note that using GitHub's feature to "Download Zip" does not contain the submodules and will not properly build.  Please clone recursively instead.
-
-## How to build
-
-If you are building libHttpClient from the xcode project, run the config script first.
-
-    ./Utilities/configureApple
-    
 
 ## Contribute Back!
 

@@ -3,6 +3,8 @@
 
 #pragma once
 
+#include <httpClient/config.h>
+
 #pragma warning(disable: 4503) // C4503: decorated name length exceeded, name was truncated  
 #pragma warning(disable: 4242) 
 
@@ -15,13 +17,17 @@
 #include <SDKDDKVer.h>
 
 // Windows
-#if HC_UWP_API
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN             // Exclude rarely-used stuff from Windows headers
 #endif
+
+#ifndef NOMINMAX
 #define NOMINMAX
+#endif
 
 #include <WinSock2.h>
 #include <windows.h>
+
 #else
 #define __STDC_LIMIT_MACROS
 #include <stdint.h>
@@ -91,7 +97,6 @@ typedef std::chrono::steady_clock chrono_clock_t;
 
 #include "utils.h"
 #include "../Global/global.h"
-#include "trace_internal.h"
 
 #include "ResultMacros.h"
 #include "EntryList.h"
@@ -118,7 +123,6 @@ HC_DECLARE_TRACE_AREA(WEBSOCKET);
     catch (...) { ::xbox::httpclient::detail::UnknownExceptionToResult(file, line); return errCode; }
 
 #define RETURN_IF_PERFORM_CALLED(call) if (call->performCalled) return E_HC_PERFORM_ALREADY_CALLED;
-#define RETURN_IF_WEBSOCKET_CONNECT_CALLED(socket) if (socket->connectCalled) return E_HC_CONNECT_ALREADY_CALLED;
 
 NAMESPACE_XBOX_HTTP_CLIENT_DETAIL_BEGIN
 

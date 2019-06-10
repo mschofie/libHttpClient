@@ -4,27 +4,32 @@
 #include <httpClient/pal.h>
 #include <httpClient/trace.h>
 
+uint64_t Internal_ThisThreadId() noexcept
+{
+    return pthread_self();
+}
+
 void Internal_HCTraceMessage(const char* areaName, HCTraceLevel traceLevel, const char* message)
 {
     int32_t androidLogPriority = ANDROID_LOG_UNKNOWN;
 
     switch (traceLevel) {
-        case HCTraceLevel_Off:
+        case HCTraceLevel::Off:
             androidLogPriority = ANDROID_LOG_SILENT;
             break;
-        case HCTraceLevel_Error:
+        case HCTraceLevel::Error:
             androidLogPriority = ANDROID_LOG_ERROR;
             break;
-        case HCTraceLevel_Warning:
+        case HCTraceLevel::Warning:
             androidLogPriority = ANDROID_LOG_WARN;
             break;
-        case HCTraceLevel_Important:
+        case HCTraceLevel::Important:
             androidLogPriority = ANDROID_LOG_WARN;
             break;
-        case HCTraceLevel_Information:
+        case HCTraceLevel::Information:
             androidLogPriority = ANDROID_LOG_INFO;
             break;
-        case HCTraceLevel_Verbose:
+        case HCTraceLevel::Verbose:
             androidLogPriority = ANDROID_LOG_VERBOSE;
             break;
     }

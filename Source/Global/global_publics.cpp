@@ -5,12 +5,12 @@
 #include "../HTTP/httpcall.h"
 #include "buildver.h"
 #include "global.h"
-#include "trace_internal.h"
+#include "../Logger/trace_internal.h"
 
 using namespace xbox::httpclient;
 
 STDAPI 
-HCGetLibVersion(_Outptr_ const char** version) HC_NOEXCEPT
+HCGetLibVersion(_Outptr_ const char** version) noexcept
 try
 {
     if (version == nullptr)
@@ -24,7 +24,7 @@ try
 CATCH_RETURN()
 
 STDAPI 
-HCInitialize(_In_opt_ HCInitArgs* args) HC_NOEXCEPT
+HCInitialize(_In_opt_ HCInitArgs* args) noexcept
 try
 {
     HCTraceImplInit();
@@ -32,7 +32,7 @@ try
 }
 CATCH_RETURN()
 
-STDAPI_(void) HCCleanup() HC_NOEXCEPT
+STDAPI_(void) HCCleanup() noexcept
 try
 {
     xbox::httpclient::cleanup_http_singleton();
@@ -40,42 +40,52 @@ try
 }
 CATCH_RETURN_WITH(;)
 
-STDAPI_(void)
+STDAPI
 HCSetHttpCallPerformFunction(
-    _In_opt_ HCCallPerformFunction performFunc
-    ) HC_NOEXCEPT
-{
-    auto httpSingleton = get_http_singleton(true);
-    if (nullptr == httpSingleton)
-        return;
-
-    httpSingleton->m_performFunc = (performFunc == nullptr) ? Internal_HCHttpCallPerformAsync : performFunc;
-}
-
-STDAPI 
-HCGetHttpCallPerformFunction(
-    _Out_ HCCallPerformFunction* performFunc
-    ) HC_NOEXCEPT
-try
+    _In_ HCCallPerformFunction performFunc,
+    _In_opt_ void* performContext
+    ) noexcept
 {
     if (performFunc == nullptr)
     {
         return E_INVALIDARG;
     }
 
-    auto httpSingleton = get_http_singleton(true);
-    if (nullptr == httpSingleton)
-        return E_HC_NOT_INITIALISED;
+    auto httpSingleton = get_http_singleton(false);
+    if (httpSingleton)
+    {
+        return E_HC_ALREADY_INITIALISED;
+    }
 
-    *performFunc = httpSingleton->m_performFunc;
+    auto& info = GetUserHttpPerformHandler();
+    info.handler = performFunc;
+    info.context = performContext;
+    return S_OK;
+}
+
+STDAPI 
+HCGetHttpCallPerformFunction(
+    _Out_ HCCallPerformFunction* performFunc,
+    _Out_ void** performContext
+    ) noexcept
+try
+{
+    if (performFunc == nullptr || performContext == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    auto& info = GetUserHttpPerformHandler();
+    *performFunc = info.handler;
+    *performContext = info.context;
     return S_OK;
 }
 CATCH_RETURN()
 
 STDAPI_(int32_t) HCAddCallRoutedHandler(
     _In_ HCCallRoutedHandler handler,
-    _In_ void* context
-    ) HC_NOEXCEPT
+    _In_opt_ void* context
+    ) noexcept
 {
     if (handler == nullptr)
     {
@@ -86,7 +96,7 @@ STDAPI_(int32_t) HCAddCallRoutedHandler(
     if (nullptr == httpSingleton)
         return E_HC_NOT_INITIALISED;
 
-    std::lock_guard<std::mutex> lock(httpSingleton->m_callRoutedHandlersLock);
+    std::lock_guard<std::recursive_mutex> lock(httpSingleton->m_callRoutedHandlersLock);
     auto functionContext = httpSingleton->m_callRoutedHandlersContext++;
     httpSingleton->m_callRoutedHandlers[functionContext] = std::make_pair(handler, context);
     return functionContext;
@@ -94,12 +104,12 @@ STDAPI_(int32_t) HCAddCallRoutedHandler(
 
 STDAPI_(void) HCRemoveCallRoutedHandler(
     _In_ int32_t handlerContext
-    ) HC_NOEXCEPT
+    ) noexcept
 {
     auto httpSingleton = get_http_singleton(true);
     if (nullptr != httpSingleton)
     {
-        std::lock_guard<std::mutex> lock(httpSingleton->m_callRoutedHandlersLock);
+        std::lock_guard<std::recursive_mutex> lock(httpSingleton->m_callRoutedHandlersLock);
         httpSingleton->m_callRoutedHandlers.erase(handlerContext);
     }
 }

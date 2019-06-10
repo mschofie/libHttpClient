@@ -9,10 +9,11 @@ using namespace xbox::httpclient::log;
 STDAPI 
 HCSettingsSetTraceLevel(
     _In_ HCTraceLevel traceLevel
-    ) HC_NOEXCEPT
+    ) noexcept
 try
 {
     HC_TRACE_SET_VERBOSITY(HTTPCLIENT, traceLevel);
+    HC_TRACE_SET_VERBOSITY(WEBSOCKET, traceLevel);
     HC_TRACE_INFORMATION(HTTPCLIENT, "HCSettingsSetTraceLevel: %d", traceLevel);
     return S_OK;
 }
@@ -21,7 +22,7 @@ CATCH_RETURN()
 STDAPI 
 HCSettingsGetTraceLevel(
     _Out_ HCTraceLevel* traceLevel
-    ) HC_NOEXCEPT
+    ) noexcept
 try
 {
     if (traceLevel == nullptr)

@@ -9,20 +9,20 @@ using namespace xbox::httpclient::log;
 
 STDAPI 
 HCMockCallCreate(
-    _Out_ hc_mock_call_handle* call
-    ) HC_NOEXCEPT
+    _Out_ HCMockCallHandle* call
+    ) noexcept
 {
     return HCHttpCallCreate(call);
 }
 
 STDAPI 
 HCMockAddMock(
-    _In_ hc_mock_call_handle call,
+    _In_ HCMockCallHandle call,
     _In_opt_z_ const char* method,
     _In_opt_z_ const char* url,
     _In_reads_bytes_opt_(requestBodySize) const uint8_t* requestBodyBytes,
     _In_ uint32_t requestBodySize
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr)
@@ -52,7 +52,7 @@ try
         }
     }
 
-    std::lock_guard<std::mutex> guard(httpSingleton->m_mocksLock);
+    std::lock_guard<std::recursive_mutex> guard(httpSingleton->m_mocksLock);
     httpSingleton->m_mocks.push_back(call);
     httpSingleton->m_mocksEnabled = true;
     return S_OK;
@@ -60,14 +60,14 @@ try
 CATCH_RETURN()
 
 STDAPI 
-HCMockClearMocks() HC_NOEXCEPT
+HCMockClearMocks() noexcept
 try 
 {
     auto httpSingleton = get_http_singleton(true);
     if (nullptr == httpSingleton)
         return E_HC_NOT_INITIALISED;
 
-    std::lock_guard<std::mutex> guard(httpSingleton->m_mocksLock);
+    std::lock_guard<std::recursive_mutex> guard(httpSingleton->m_mocksLock);
 
     for (auto& mockCall : httpSingleton->m_mocks)
     {
@@ -82,39 +82,39 @@ CATCH_RETURN()
 
 STDAPI 
 HCMockResponseSetResponseBodyBytes(
-    _In_ hc_mock_call_handle call,
+    _In_ HCMockCallHandle call,
     _In_reads_bytes_(bodySize) const uint8_t* bodyBytes,
     _In_ uint32_t bodySize
-    ) HC_NOEXCEPT
+    ) noexcept
 {
     return HCHttpCallResponseSetResponseBodyBytes(call, bodyBytes, bodySize);
 }
 
 STDAPI 
 HCMockResponseSetStatusCode(
-    _In_ hc_mock_call_handle call,
+    _In_ HCMockCallHandle call,
     _In_ uint32_t statusCode
-    ) HC_NOEXCEPT
+    ) noexcept
 {
     return HCHttpCallResponseSetStatusCode(call, statusCode);
 }
 
 STDAPI 
 HCMockResponseSetNetworkErrorCode(
-    _In_ hc_mock_call_handle call,
+    _In_ HCMockCallHandle call,
     _In_ HRESULT networkErrorCode,
     _In_ uint32_t platformNetworkErrorCode
-    ) HC_NOEXCEPT
+    ) noexcept
 {
     return HCHttpCallResponseSetNetworkErrorCode(call, networkErrorCode, platformNetworkErrorCode);
 }
 
 STDAPI 
 HCMockResponseSetHeader(
-    _In_ hc_mock_call_handle call,
+    _In_ HCMockCallHandle call,
     _In_z_ const char* headerName,
     _In_z_ const char* headerValue
-    ) HC_NOEXCEPT
+    ) noexcept
 {
     return HCHttpCallResponseSetHeader(call, headerName, headerValue);
 }

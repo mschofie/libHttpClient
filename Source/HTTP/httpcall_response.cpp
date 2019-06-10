@@ -9,9 +9,9 @@ using namespace xbox::httpclient;
 
 STDAPI 
 HCHttpCallResponseGetResponseString(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _Out_ const char** responseString
-    ) HC_NOEXCEPT
+    ) noexcept
 try
 {
     if (call == nullptr || responseString == nullptr)
@@ -30,9 +30,9 @@ try
 CATCH_RETURN()
 
 STDAPI HCHttpCallResponseGetResponseBodyBytesSize(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _Out_ size_t* bufferSize
-    ) HC_NOEXCEPT
+    ) noexcept
 try
 {
     if (call == nullptr || bufferSize == nullptr)
@@ -46,11 +46,11 @@ try
 CATCH_RETURN()
 
 STDAPI HCHttpCallResponseGetResponseBodyBytes(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_ size_t bufferSize,
     _Out_writes_bytes_to_opt_(bufferSize, *bufferUsed) uint8_t* buffer,
     _Out_opt_ size_t* bufferUsed
-    ) HC_NOEXCEPT
+    ) noexcept
 try
 {
     if (call == nullptr || buffer == nullptr)
@@ -72,13 +72,12 @@ try
 }
 CATCH_RETURN()
 
-
 STDAPI 
 HCHttpCallResponseSetResponseBodyBytes(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_reads_bytes_(bodySize) const uint8_t* bodyBytes,
     _In_ size_t bodySize
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr || bodyBytes == nullptr)
@@ -94,11 +93,32 @@ try
 }
 CATCH_RETURN()
 
+STDAPI
+HCHttpCallResponseAppendResponseBodyBytes(
+    _In_ HCCallHandle call,
+    _In_reads_bytes_(bodySize) const uint8_t* bodyBytes,
+    _In_ size_t bodySize
+) noexcept
+try
+{
+    if (call == nullptr || bodyBytes == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    call->responseBodyBytes.insert(call->responseBodyBytes.end(), bodyBytes, bodyBytes + bodySize);
+    call->responseString.clear();
+
+    if (call->traceCall) { HC_TRACE_INFORMATION(HTTPCLIENT, "HCHttpCallResponseAppendResponseBodyBytes [ID %llu]: bodySize=%llu (total=%llu)", call->id, bodySize, call->responseBodyBytes.size()); }
+    return S_OK;
+}
+CATCH_RETURN()
+
 STDAPI 
 HCHttpCallResponseGetStatusCode(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _Out_ uint32_t* statusCode
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr || statusCode == nullptr)
@@ -113,9 +133,9 @@ CATCH_RETURN()
 
 STDAPI 
 HCHttpCallResponseSetStatusCode(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_ uint32_t statusCode
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr)
@@ -131,10 +151,10 @@ CATCH_RETURN()
 
 STDAPI 
 HCHttpCallResponseGetNetworkErrorCode(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _Out_ HRESULT* networkErrorCode,
     _Out_ uint32_t* platformNetworkErrorCode
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr || networkErrorCode == nullptr || platformNetworkErrorCode == nullptr)
@@ -150,10 +170,10 @@ CATCH_RETURN()
 
 STDAPI 
 HCHttpCallResponseSetNetworkErrorCode(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_ HRESULT networkErrorCode,
     _In_ uint32_t platformNetworkErrorCode
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr)
@@ -168,12 +188,53 @@ try
 }
 CATCH_RETURN()
 
+STDAPI
+HCHttpCallResponseGetPlatformNetworkErrorMessage(
+    _In_ HCCallHandle call,
+    _Out_ const char** platformNetworkErrorMessage
+    ) noexcept
+try
+{
+    if (call == nullptr || platformNetworkErrorMessage == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    *platformNetworkErrorMessage = call->platformNetworkErrorMessage.c_str();
+    return S_OK;
+}
+CATCH_RETURN()
+
+STDAPI
+HCHttpCallResponseSetPlatformNetworkErrorMessage(
+    _In_ HCCallHandle call,
+    _In_z_ const char* platformNetworkErrorMessage
+    ) noexcept
+try
+{
+    if (call == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+    // do a thing to/from string
+    call->platformNetworkErrorMessage = platformNetworkErrorMessage;
+    if (call->traceCall)
+    {
+        HC_TRACE_INFORMATION(HTTPCLIENT,
+            "HCHttpCallResponseSetErrorMessage [ID %llu]: errorMessage=%s",
+            call->id,
+            platformNetworkErrorMessage);
+    }
+    return S_OK;
+}
+CATCH_RETURN()
+
 STDAPI 
 HCHttpCallResponseGetHeader(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_z_ const char* headerName,
     _Out_ const char** headerValue
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr || headerName == nullptr || headerValue == nullptr)
@@ -196,9 +257,9 @@ CATCH_RETURN()
 
 STDAPI 
 HCHttpCallResponseGetNumHeaders(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _Out_ uint32_t* numHeaders
-    ) HC_NOEXCEPT
+    ) noexcept
 try 
 {
     if (call == nullptr || numHeaders == nullptr)
@@ -213,11 +274,11 @@ CATCH_RETURN()
 
 STDAPI 
 HCHttpCallResponseGetHeaderAtIndex(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_ uint32_t headerIndex,
     _Out_ const char** headerName,
     _Out_ const char** headerValue
-    ) HC_NOEXCEPT
+    ) noexcept
 try
 {
     if (call == nullptr || headerName == nullptr || headerValue == nullptr)
@@ -246,10 +307,32 @@ CATCH_RETURN()
 
 STDAPI 
 HCHttpCallResponseSetHeader(
-    _In_ hc_call_handle_t call,
+    _In_ HCCallHandle call,
     _In_z_ const char* headerName,
     _In_z_ const char* headerValue
-    ) HC_NOEXCEPT
+) noexcept
+{
+    if (call == nullptr || headerName == nullptr || headerValue == nullptr)
+    {
+        return E_INVALIDARG;
+    }
+
+    return HCHttpCallResponseSetHeaderWithLength(
+        call,
+        headerName,
+        strlen(headerName),
+        headerValue,
+        strlen(headerValue)
+    );
+}
+
+STDAPI HCHttpCallResponseSetHeaderWithLength(
+    _In_ HCCallHandle call,
+    _In_reads_(nameSize) const char* headerName,
+    _In_ size_t nameSize,
+    _In_reads_(valueSize) const char* headerValue,
+    _In_ size_t valueSize
+    ) noexcept
 try 
 {
     if (call == nullptr || headerName == nullptr || headerValue == nullptr)
@@ -257,20 +340,25 @@ try
         return E_INVALIDARG;
     }
 
-    auto it = call->responseHeaders.find(headerName);
+    http_internal_string name{ headerName, headerName + nameSize };
+
+    auto it = call->responseHeaders.find(name);
     if (it != call->responseHeaders.end())
     {
         // Duplicated response header found. We must concatenate it with the existing headers
         http_internal_string& newHeaderValue = it->second;
         newHeaderValue.append(", ");
-        newHeaderValue.append(headerValue);
+        newHeaderValue.append(headerValue, headerValue + valueSize);
 
-        if (call->traceCall) { HC_TRACE_INFORMATION(HTTPCLIENT, "HCHttpCallResponseSetResponseHeader [ID %llu]: Duplicated header %s=%s", call->id, headerName, newHeaderValue.c_str()); }
+        if (call->traceCall) { HC_TRACE_INFORMATION(HTTPCLIENT, "HCHttpCallResponseSetResponseHeader [ID %llu]: Duplicated header %s=%s", call->id, name.c_str(), newHeaderValue.c_str()); }
     }
     else
     {
-        call->responseHeaders[headerName] = headerValue;
-        if (call->traceCall) { HC_TRACE_INFORMATION(HTTPCLIENT, "HCHttpCallResponseSetResponseHeader [ID %llu]: %s=%s", call->id, headerName, headerValue); }
+        http_internal_string value{ headerValue, headerValue + valueSize };
+
+        if (call->traceCall) { HC_TRACE_INFORMATION(HTTPCLIENT, "HCHttpCallResponseSetResponseHeader [ID %llu]: %s=%s", call->id, name.c_str(), value.c_str()); }
+
+        call->responseHeaders[name] = std::move(value);
     }
 
     return S_OK;

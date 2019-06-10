@@ -28,7 +28,7 @@ bool g_memFreeCalled = false;
 
 _Ret_maybenull_ _Post_writable_byte_size_(size) void* STDAPIVCALLTYPE MemAlloc(
     _In_ size_t size,
-    _In_ hc_memory_type memoryType
+    _In_ HCMemoryType memoryType
     )   
 {
     g_memAllocCalled = true;
@@ -37,7 +37,7 @@ _Ret_maybenull_ _Post_writable_byte_size_(size) void* STDAPIVCALLTYPE MemAlloc(
 
 void STDAPIVCALLTYPE MemFree(
     _In_ _Post_invalid_ void* pointer,
-    _In_ hc_memory_type memoryType
+    _In_ HCMemoryType memoryType
     )
 {
     g_memFreeCalled = true;
@@ -45,13 +45,18 @@ void STDAPIVCALLTYPE MemFree(
 }
 
 static bool g_PerformCallbackCalled = false;
-static void STDAPIVCALLTYPE PerformCallback(
-    _In_ hc_call_handle_t call,
-    _Inout_ AsyncBlock* asyncBlock
+static void* g_PerformCallbackContext = nullptr;
+static int g_performContext = 0;
+static void CALLBACK PerformCallback(
+    _In_ HCCallHandle call,
+    _Inout_ XAsyncBlock* asyncBlock,
+    _In_opt_ void* ctx,
+    _In_opt_ HCPerformEnv /*env*/
     )
 {
     g_PerformCallbackCalled = true;
-    CompleteAsync(asyncBlock, S_OK, 0);
+    g_PerformCallbackContext = ctx;
+    XAsyncComplete(asyncBlock, S_OK, 0);
 }
 
 
@@ -116,34 +121,33 @@ public:
     {
         DEFINE_TEST_CASE_PROPERTIES_FOCUS(TestPerformCallback);
 
+        VERIFY_ARE_EQUAL(S_OK, HCSetHttpCallPerformFunction(&PerformCallback, &g_performContext));
         VERIFY_ARE_EQUAL(S_OK, HCInitialize(nullptr));
         g_PerformCallbackCalled = false;
         HCCallPerformFunction func = nullptr;
-        VERIFY_ARE_EQUAL(S_OK, HCGetHttpCallPerformFunction(&func));
+        void* ctx = nullptr;
+        VERIFY_ARE_EQUAL(S_OK, HCGetHttpCallPerformFunction(&func, &ctx));
         VERIFY_IS_NOT_NULL(func);
 
-        HCSetHttpCallPerformFunction(&PerformCallback);
-        hc_call_handle_t call;
+        HCCallHandle call;
         HCHttpCallCreate(&call);
         VERIFY_ARE_EQUAL(false, g_PerformCallbackCalled);
 
-        async_queue_handle_t queue;
-        uint32_t sharedAsyncQueueId = 0;
-        CreateSharedAsyncQueue(
-            sharedAsyncQueueId,
-            AsyncQueueDispatchMode::AsyncQueueDispatchMode_Manual,
-            AsyncQueueDispatchMode::AsyncQueueDispatchMode_Manual,
+        XTaskQueueHandle queue;
+        XTaskQueueCreate(
+            XTaskQueueDispatchMode::Manual,
+            XTaskQueueDispatchMode::Manual,
             &queue);
 
-        AsyncBlock* asyncBlock = new AsyncBlock;
-        ZeroMemory(asyncBlock, sizeof(AsyncBlock));
+        XAsyncBlock* asyncBlock = new XAsyncBlock;
+        ZeroMemory(asyncBlock, sizeof(XAsyncBlock));
         asyncBlock->context = call;
         asyncBlock->queue = queue;
-        asyncBlock->callback = [](AsyncBlock* asyncBlock)
+        asyncBlock->callback = [](XAsyncBlock* asyncBlock)
         {
             HRESULT errCode = S_OK;
             uint32_t platErrCode = 0;
-            hc_call_handle_t call = static_cast<hc_call_handle_t>(asyncBlock->context);
+            HCCallHandle call = static_cast<HCCallHandle>(asyncBlock->context);
             VERIFY_ARE_EQUAL(S_OK, HCHttpCallResponseGetNetworkErrorCode(call, &errCode, &platErrCode));
             uint32_t statusCode = 0;
             VERIFY_ARE_EQUAL(S_OK, HCHttpCallResponseGetStatusCode(call, &statusCode));
@@ -153,12 +157,13 @@ public:
 
         while (true)
         {
-            if (!DispatchAsyncQueue(queue, AsyncQueueCallbackType::AsyncQueueCallbackType_Work, 0)) break;
+            if (!XTaskQueueDispatch(queue, XTaskQueuePort::Work, 0)) break;
         }
-        VERIFY_ARE_EQUAL(true, DispatchAsyncQueue(queue, AsyncQueueCallbackType::AsyncQueueCallbackType_Completion, 0));
+        VERIFY_ARE_EQUAL(true, XTaskQueueDispatch(queue, XTaskQueuePort::Completion, 0));
         VERIFY_ARE_EQUAL(true, g_PerformCallbackCalled);
+        VERIFY_ARE_EQUAL(reinterpret_cast<uintptr_t>(&g_performContext), reinterpret_cast<uintptr_t>(g_PerformCallbackContext));
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallCloseHandle(call));
-        CloseAsyncQueue(queue);
+        XTaskQueueCloseHandle(queue);
         HCCleanup();
     }
 
@@ -169,29 +174,29 @@ public:
 
         HCTraceLevel level;
 
-        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel_Off));
+        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel::Off));
         VERIFY_ARE_EQUAL(S_OK, HCSettingsGetTraceLevel(&level));
-        VERIFY_ARE_EQUAL(HCTraceLevel_Off, level);
+        VERIFY_ARE_EQUAL(HCTraceLevel::Off, level);
 
-        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel_Error));
+        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel::Error));
         VERIFY_ARE_EQUAL(S_OK, HCSettingsGetTraceLevel(&level));
-        VERIFY_ARE_EQUAL(HCTraceLevel_Error, level);
+        VERIFY_ARE_EQUAL(HCTraceLevel::Error, level);
 
-        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel_Warning));
+        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel::Warning));
         VERIFY_ARE_EQUAL(S_OK, HCSettingsGetTraceLevel(&level));
-        VERIFY_ARE_EQUAL(HCTraceLevel_Warning, level);
+        VERIFY_ARE_EQUAL(HCTraceLevel::Warning, level);
 
-        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel_Important));
+        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel::Important));
         VERIFY_ARE_EQUAL(S_OK, HCSettingsGetTraceLevel(&level));
-        VERIFY_ARE_EQUAL(HCTraceLevel_Important, level);
+        VERIFY_ARE_EQUAL(HCTraceLevel::Important, level);
 
-        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel_Information));
+        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel::Information));
         VERIFY_ARE_EQUAL(S_OK, HCSettingsGetTraceLevel(&level));
-        VERIFY_ARE_EQUAL(HCTraceLevel_Information, level);
+        VERIFY_ARE_EQUAL(HCTraceLevel::Information, level);
 
-        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel_Verbose));
+        VERIFY_ARE_EQUAL(S_OK, HCSettingsSetTraceLevel(HCTraceLevel::Verbose));
         VERIFY_ARE_EQUAL(S_OK, HCSettingsGetTraceLevel(&level));
-        VERIFY_ARE_EQUAL(HCTraceLevel_Verbose, level);
+        VERIFY_ARE_EQUAL(HCTraceLevel::Verbose, level);
 
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallRequestSetTimeoutWindow(nullptr, 1000));
         uint32_t timeout = 0;
@@ -210,7 +215,7 @@ public:
         DEFINE_TEST_CASE_PROPERTIES(TestCall);
 
         VERIFY_ARE_EQUAL(S_OK, HCInitialize(nullptr));
-        hc_call_handle_t call = nullptr;
+        HCCallHandle call = nullptr;
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallCreate(&call));
         VERIFY_IS_NOT_NULL(call);
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallCloseHandle(call));
@@ -221,7 +226,7 @@ public:
     {
         DEFINE_TEST_CASE_PROPERTIES(TestRequest);
         VERIFY_ARE_EQUAL(S_OK, HCInitialize(nullptr));
-        hc_call_handle_t call = nullptr;
+        HCCallHandle call = nullptr;
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallCreate(&call));
 
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallRequestSetUrl(call, "1", "2"));
@@ -271,7 +276,7 @@ public:
     {
         DEFINE_TEST_CASE_PROPERTIES(TestRequestHeaders);
         VERIFY_ARE_EQUAL(S_OK, HCInitialize(nullptr));
-        hc_call_handle_t call = nullptr;
+        HCCallHandle call = nullptr;
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallCreate(&call));
 
         uint32_t numHeaders = 0;
@@ -319,7 +324,7 @@ public:
         DEFINE_TEST_CASE_PROPERTIES(TestResponse);
 
         VERIFY_ARE_EQUAL(S_OK, HCInitialize(nullptr));
-        hc_call_handle_t call = nullptr;
+        HCCallHandle call = nullptr;
         VERIFY_ARE_EQUAL(S_OK, HCHttpCallCreate(&call));
 
         std::string s1 = "test1";
@@ -350,7 +355,7 @@ public:
         DEFINE_TEST_CASE_PROPERTIES(TestResponseHeaders);
 
         VERIFY_ARE_EQUAL(S_OK, HCInitialize(nullptr));
-        hc_call_handle_t call = nullptr;
+        HCCallHandle call = nullptr;
         HCHttpCallCreate(&call);
 
         uint32_t numHeaders = 0;
