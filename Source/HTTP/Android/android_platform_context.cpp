@@ -20,17 +20,17 @@ HRESULT IHCPlatformContext::InitializeHttpPlatformContext(HCInitArgs* args, IHCP
         return E_FAIL;
     }
 
-    jclass localHttpRequest = jniEnv->FindClass("com/xbox/httpclient/HttpClientRequest");
+    jclass localHttpRequest = jniEnv->FindClass("com/xbox/httpclient/HttpClientRequestASA");
     if (localHttpRequest == nullptr)
     {
-        HC_TRACE_ERROR(HTTPCLIENT, "Could not find HttpClientRequest class");
+        HC_TRACE_ERROR(HTTPCLIENT, "Could not find HttpClientRequestASA class");
         return E_FAIL;
     }
 
-    jclass localHttpResponse = jniEnv->FindClass("com/xbox/httpclient/HttpClientResponse");
+    jclass localHttpResponse = jniEnv->FindClass("com/xbox/httpclient/HttpClientResponseASA");
     if (localHttpResponse == nullptr)
     {
-        HC_TRACE_ERROR(HTTPCLIENT, "Could not find HttpClientResponse class");
+        HC_TRACE_ERROR(HTTPCLIENT, "Could not find HttpClientResponseASA class");
         return E_FAIL;
     }
 

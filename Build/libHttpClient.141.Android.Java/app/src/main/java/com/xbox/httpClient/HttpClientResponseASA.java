@@ -6,11 +6,11 @@ import android.util.Log;
 import java.io.IOException;
 import okhttp3.Response;
 
-class HttpClientResponse
+class HttpClientResponseASA
 {
     private Response response;
 
-    public HttpClientResponse(Response sourceResponse) {
+    public HttpClientResponseASA(Response sourceResponse) {
         this.response = sourceResponse;
     }
 

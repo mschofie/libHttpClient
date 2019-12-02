@@ -8,7 +8,7 @@
 extern "C"
 {
 
-JNIEXPORT void JNICALL Java_com_xbox_httpclient_HttpClientRequest_OnRequestCompleted(JNIEnv* env, jobject instance, jlong call, jobject response)
+JNIEXPORT void JNICALL Java_com_xbox_httpclient_HttpClientRequestASA_OnRequestCompleted(JNIEnv* env, jobject instance, jlong call, jobject response)
 {
     hc_call_handle_t sourceCall = reinterpret_cast<hc_call_handle_t>(call);
     HttpRequest* request = nullptr;

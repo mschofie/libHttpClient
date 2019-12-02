@@ -15,11 +15,11 @@ import okhttp3.Request;
 import okhttp3.Response;
 import okhttp3.RequestBody;
 
-public class HttpClientRequest {
+public class HttpClientRequestASA {
     private Request okHttpRequest;
     private Request.Builder requestBuilder;
 
-    public HttpClientRequest() {
+    public HttpClientRequestASA() {
         requestBuilder = new Request.Builder();
     }
 
@@ -29,8 +29,8 @@ public class HttpClientRequest {
         return activeNetworkInfo != null && activeNetworkInfo.isConnected();
     }
 
-    public static HttpClientRequest createClientRequest() {
-        return new HttpClientRequest();
+    public static HttpClientRequestASA createClientRequest() {
+        return new HttpClientRequestASA();
     }
 
     public void setHttpUrl(String url) {
@@ -62,10 +62,10 @@ public class HttpClientRequest {
 
             @Override
             public void onResponse(Call call, final Response response) throws IOException {
-                OnRequestCompleted(sourceCall, new HttpClientResponse(response));
+                OnRequestCompleted(sourceCall, new HttpClientResponseASA(response));
             }
         });
     }
 
-    private native void OnRequestCompleted(long call, HttpClientResponse response);
+    private native void OnRequestCompleted(long call, HttpClientResponseASA response);
 }
